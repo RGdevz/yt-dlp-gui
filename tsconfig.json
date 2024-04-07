@@ -1,0 +1,27 @@
+{
+    "compilerOptions": {
+        "module": "esnext",
+        "allowSyntheticDefaultImports": true,
+        "esModuleInterop": true,
+        "target": "esnext",
+        "outDir": "dist",
+        "strict": false,
+        "moduleResolution": "node"
+
+    },
+
+    "exclude": [
+        "node_modules",
+        "lib"
+    ],
+
+
+
+
+    "include": [
+        "./src/**/*.ts",
+        "./src/**/*.vue"
+    ]
+
+
+}
