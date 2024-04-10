@@ -3,6 +3,6 @@ node_modules/
 dist-pkg/
 dist/
 .idea/
-static_bin/go.exe
-yode.exe
-yode.bin
+
+static/
+debug.log

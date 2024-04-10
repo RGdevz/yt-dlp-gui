@@ -21,10 +21,12 @@
     "open": "^10.1.0",
     "prompts": "^2.4.2",
     "stdlib": "github:RGdevz/simpleLib",
+    "vuetify": "^3.5.15",
     "yt-dlp-wrap": "^2.3.12",
     "yue-helper": "github:RGdevz/yue-helper"
   },
   "devDependencies": {
+    "@mdi/font": "^7.4.47",
     "@types/fs-extra": "^11.0.1",
     "@types/mime-types": "^2.1.4",
     "@types/prompts": "^2.4.4",

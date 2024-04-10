@@ -39,10 +39,10 @@ process.on('uncaughtException',(err)=>yueHelper.showErrorMessage(err.message))
 
 async function get_ytdlp() {
 
- const bin = path.join(appTempDir('yueApp'),'yt-dlp.exe')
+ const bin = path.join(appTempDir(),'yt-dlp.exe')
 
  if (!fs.existsSync(bin)){
-  yueHelper.emit('dlp-data',`downloading yt-dlp to ${bin}...`).catch(()=>{})
+ yueHelper.emit('dlp-data',`downloading yt-dlp to ${bin}...`).catch(()=>{})
  await downloadFromGithubFix(bin)
 
  }
@@ -63,7 +63,7 @@ function setupWindow():Gui.Window{
  win.setMaximizable(false)
 
 
- win.setContentSize({width: 700, height: 700})
+ win.setContentSize({width: 760, height: 780})
 
  win.onClose = () => {
  gui.MessageLoop.quit()
@@ -137,7 +137,7 @@ function setupWindow():Gui.Window{
 
 
 
-    async function downloadVid({url,quality}:downloadArgs,path:string) {
+    async function downloadVid({url,quality,openDir}:downloadArgs,path:string) {
 
     if (!path) return
 
@@ -165,8 +165,14 @@ function setupWindow():Gui.Window{
 
      /*cmd.push(...['-S','ext:mp4:m4a'])*/
 
+
      try{
-     const job = (await get_ytdlp()).exec(cmd)
+
+
+     yueHelper.emit('downloading','1').catch(()=>{})
+
+     const yt = await get_ytdlp()
+     const job = yt.exec()
 
      job.on('ytDlpEvent',(event,data)=>{
      yueHelper.emit('dlp-data',data)
@@ -174,9 +180,15 @@ function setupWindow():Gui.Window{
      )
 
 
+
       job.on('close',(code)=>{
+
+      yueHelper.emit('downloading','0')
+
       if (code === 0){
-       open(path).catch(()=>{})
+      if (openDir) {
+      open(path).catch(() => {})
+      }
       }
       }
       )
@@ -184,7 +196,10 @@ function setupWindow():Gui.Window{
 
      job.on('error',(error)=> {
 
-      const errMsg = error?.message || String(error)
+
+     yueHelper.emit('downloading','0')
+
+     const errMsg = error?.message || String(error)
 
      yueHelper.showErrorMessage(error?.message || String(error))
      yueHelper.emit('dlp-data',errMsg)
@@ -194,6 +209,7 @@ function setupWindow():Gui.Window{
 
       }catch (e) {
       console.error(e)
+      yueHelper.emit('downloading','0')
       yueHelper.emit('dlp-data','')
       yueHelper.showErrorMessage(e?.message || String(e))
      }
@@ -267,8 +283,11 @@ function setupWindow():Gui.Window{
 
 
 
-  extractWebViewDll(e=>yueHelper.showErrorMessage(e))
+  const loader = extractWebViewDll(e=>yueHelper.showErrorMessage(e))
 
+
+  //8-bit hex color https://www.schemecolor.com/hex/FBDD49
+  process.env['WEBVIEW2_DEFAULT_BACKGROUND_COLOR'] = 'FF282828'
 
   const browser = yueHelper.createBrowser(async (eventName,args,cb)=>{
 
@@ -309,7 +328,7 @@ function setupWindow():Gui.Window{
 
    }
 
-   }
+   },loader
    )
 
 
@@ -404,7 +423,7 @@ function setupWindow():Gui.Window{
 
   const response = box.runForWindow(window)
 
-  if (response === 1) process.exit(1)
+  if (response === 1) gui.MessageLoop.quit()
 
   }
   )

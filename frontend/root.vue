@@ -6,43 +6,68 @@
 
  <h3 >YT-DLP Gui</h3>
 
-  <div style="padding-top: 2rem"></div>
 
-  <label style="display: flex; margin-left: 7px; font-weight: bold" for="url">Enter link:</label>
-  <input ref="url" id="url" type="url" style="width: 99%; padding: 5px; border-radius: 10px; font-size: 1.1em">
 
   <div style="padding-top: 2rem"></div>
 
-  <label style="font-weight: bold; margin-right: 2px"  for="quality">Select Quality:</label>
 
-  <select ref="quality" style="font-size: 1.1em" id="quality">
+
+  <v-text-field base-color="red"  color="red" rounded ref="url" label="URL" style="width: 97%; margin-inline: auto" variant="outlined"></v-text-field>
+
+  <div style="padding-top: 1rem"></div>
+
+  <v-select color="red" class="w-33" style="margin-inline: auto"
+   ref="quality"
+   label="Select Quality"
+
+  base-color="red"
+   :items="['Highest', 'Medium', 'Low']"
+   variant="outlined"
+   rounded
+  v-model="quality"
+  ></v-select>
+
+<!--  <select ref="quality" style="font-size: 1.1em" id="quality">
 
    <option>Highest</option>
    <option>Medium</option>
    <option>Low</option>
-<!--   <option>Sound only</option>-->
-  </select>
+
+  </select>-->
+
+  <div style="padding-top: 1rem"></div>
+
+
+  <v-checkbox
+
+   style="margin-inline: auto; width: fit-content"
+   color="red"
+   hide-details
+   base-color="red"
+   v-model="checked"
+   label="Open directory after finish">
+
+  </v-checkbox>
+
+
+
+
   <div style="padding-top: 2rem"></div>
 
-  <label style="font-weight: bold; margin-right: 2px" for="open">Open directory after finish:</label>
-  <input checked type="checkbox" ref="open" id="open">
-
-  <div style="padding-top: 2rem"></div>
 
 
+  <v-btn  :loading="downloading === '1'"  @click="startDownload" height="55" size="large" color="red" variant="outlined">Download</v-btn>
 
-  <button @click="startDownload" style="padding: 10px; border: black solid 1px; border-radius: 10px; font-weight: bold; color: white; background: black">Download</button>
-<!--  <button @click="test">test</button>-->
 
   <div style="padding-top: 3rem"></div>
 
 
-  <textarea disabled style="width: 99%; height: 220px; background: rgba(63,63,63,0.5); color: white; border-radius: 10px; padding: 5px" >
+  <textarea  disabled style="width: 99%; height: 220px; background: rgba(63,63,63,0.5); color: white; border-radius: 10px; padding: 5px; resize: none" >
    {{data}}
   </textarea>
 
 
-  <div style="padding-top: 2rem"></div>
+  <div style="padding-top: 1rem"></div>
 
  </div>
 
@@ -61,8 +86,10 @@ export default {
   return{
 
    data:'...',
-  downloading:false,
+  downloading:'0',
+   checked:true,
 
+   quality:'Highest'
 
   }
   },
@@ -71,6 +98,7 @@ export default {
 
    mounted() {
 
+   getIPCEmitter().on('downloading',(value)=>this.downloading = value)
 
    getIPCEmitter().on('dlp-data',(data)=>{
 
@@ -109,7 +137,7 @@ export default {
    }
 
 
-  const args = {quality:quality,url:link,openDir:this.$refs['open'].checked} as downloadArgs
+  const args = {quality:quality,url:link,openDir:this.checked} as downloadArgs
 
 
   const res = await emitBackend('download', JSON.stringify(args))

@@ -5,6 +5,7 @@ import * as os from "os";
 
 import YTDlpWrap from "yt-dlp-wrap";
 
+const appName = require('../package.json').name
 
 export function getStaticFilesPath(){
 return path.join(global.rootPath(),'static')
@@ -67,7 +68,7 @@ export function createTempDir() {
 
 
 
-export function appTempDir(appName:string) {
+export function appTempDir() {
 	const tmpDir = os.tmpdir();
 	const tempDirPath = path.join(tmpDir, appName);
 	console.log('temp dir',tempDirPath)
@@ -102,33 +103,79 @@ return new Promise(resolve => setTimeout(()=>resolve(''),time))
 
 export function getGui(){
 
-const thePath = path.join(appEntryPointPath(),'gui.node')
+
+
+let thePath = path.join(appEntryPointPath(),'gui.node')
+
 
 if (fs.pathExistsSync(thePath)) return thePath
 
 console.log('self extracting gui.node')
 
-	try {
+	thePath = path.join(appTempDir(),'gui.node')
+
+	 try {
 		fs.writeFileSync(thePath, fs.readFileSync(path.join(global.rootPath(), 'gui.node')))
 
 	}catch (e) {
 
 		const error = e as NodeJS.ErrnoException
 
-		if (error.code === 'EPERM'){
+		if (error.code === 'EBUSY') return thePath
 
-	throw new Error('no permissions to extract necessary files in current dir')
+			if (!fs.pathExistsSync(thePath)){
+			throw e
+	 	}
 
-	} else {
-		throw e
-		}
-
-	}
+	 }
 
 return thePath
 
+ }
 
-}
+
+
+
+
+
+export function extractWebViewDll(onError?:(e:string)=>void){
+
+	if (process.platform !=='win32') return
+
+ let thePath = path.join(appEntryPointPath(),'WebView2Loader.dll')
+
+	if (fs.pathExistsSync(thePath)) return thePath
+
+
+	try {
+
+		console.log('self extracting WebView2Loader.dll')
+
+		thePath = path.join(appTempDir(),'WebView2Loader.dll')
+
+		fs.writeFileSync(thePath, fs.readFileSync(path.join(global.rootPath(), 'WebView2Loader.dll')))
+
+	}catch (e) {
+
+		const error = e as NodeJS.ErrnoException
+
+	 const errMsg = error?.message || String(e)
+
+		if (error.code === 'EBUSY') return thePath
+
+		if (!fs.pathExistsSync(thePath)){
+		onError(errMsg)
+		}
+
+
+	}
+
+	return thePath
+
+
+ }
+
+
 
 
 
@@ -156,46 +203,6 @@ platform = os.platform()
  !isWin32 && fs.chmodSync(filePath, '777');
  }
 
-
-
-
-
-export function extractWebViewDll(onError?:(e:string)=>void){
-
-	if (process.platform !=='win32') return
-
-	const thePath = path.join(appEntryPointPath(),'WebView2Loader.dll')
-
-	if (fs.pathExistsSync(thePath)) return thePath
-
-	console.log('self extracting WebView2Loader.dll')
-
-	try {
-		fs.writeFileSync(thePath, fs.readFileSync(path.join(global.rootPath(), 'WebView2Loader.dll')))
-
-	}catch (e) {
-
-		const error = e as NodeJS.ErrnoException
-
-		let errMsg = error?.message || String(e)
-
-
-		if (error.code === 'EPERM'){
-
-		errMsg = 'no permissions to extract necessary files in current dir'
-
-		}
-
-
-		onError(errMsg)
-
-
-	}
-
-	return thePath
-
-
-}
 
 
 

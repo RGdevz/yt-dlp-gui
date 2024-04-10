@@ -2913,6 +2913,64 @@ var require_dist = __commonJS({
   }
 });
 
+// package.json
+var require_package = __commonJS({
+  "package.json"(exports, module2) {
+    module2.exports = {
+      name: "gui",
+      version: "1.0.0",
+      description: "",
+      main: "compiled/index.js",
+      scripts: {
+        test: "node start.js",
+        vite: "vite build",
+        start: 'concurrently --kill-others "vite" "yode start.js"',
+        build: "vite build && es-helper . && yuepack build dist",
+        "build-linux": "es-helper . && yuepack build dist --platform linux"
+      },
+      author: "",
+      license: "ISC",
+      dependencies: {
+        eventemitter3: "^5.0.1",
+        execa: "^7.2.0",
+        "fs-extra": "^11.1.1",
+        jiti: "^1.19.1",
+        "mime-types": "^2.1.35",
+        open: "^10.1.0",
+        prompts: "^2.4.2",
+        stdlib: "github:RGdevz/simpleLib",
+        vuetify: "^3.5.15",
+        "yt-dlp-wrap": "^2.3.12",
+        "yue-helper": "github:RGdevz/yue-helper"
+      },
+      devDependencies: {
+        "@mdi/font": "^7.4.47",
+        "@types/fs-extra": "^11.0.1",
+        "@types/mime-types": "^2.1.4",
+        "@types/prompts": "^2.4.4",
+        "@vitejs/plugin-vue": "^5.0.4",
+        concurrently: "^8.2.2",
+        vite: "^5.2.8",
+        vue: "^3.4.21"
+      },
+      build: {
+        icon: "icons/icon.ico",
+        appId: "com.app.id",
+        productName: "App",
+        description: "Gui app for YT-DLP",
+        minify: false,
+        unpackDir: "{assets,build}",
+        ignore: [
+          "icons/**/*",
+          "node_modules/**/*",
+          "assets/*",
+          "**/.git/**"
+        ]
+      }
+    };
+  }
+});
+
 // src/helper.ts
 function getStaticFilesPath() {
   return path.join(global.rootPath(), "static");
@@ -2923,7 +2981,7 @@ function isPackaged() {
 function appEntryPointPath() {
   return path.dirname(process.execPath);
 }
-function appTempDir(appName) {
+function appTempDir() {
   const tmpDir = os.tmpdir();
   const tempDirPath = path.join(tmpDir, appName);
   console.log("temp dir", tempDirPath);
@@ -2944,18 +3002,40 @@ function checkWritePermissionSync(dirPath) {
   }
 }
 function getGui() {
-  const thePath = path.join(appEntryPointPath(), "gui.node");
+  let thePath = path.join(appEntryPointPath(), "gui.node");
   if (fs.pathExistsSync(thePath))
     return thePath;
   console.log("self extracting gui.node");
+  thePath = path.join(appTempDir(), "gui.node");
   try {
     fs.writeFileSync(thePath, fs.readFileSync(path.join(global.rootPath(), "gui.node")));
   } catch (e) {
     const error = e;
-    if (error.code === "EPERM") {
-      throw new Error("no permissions to extract necessary files in current dir");
-    } else {
+    if (error.code === "EBUSY")
+      return thePath;
+    if (!fs.pathExistsSync(thePath)) {
       throw e;
+    }
+  }
+  return thePath;
+}
+function extractWebViewDll(onError) {
+  if (process.platform !== "win32")
+    return;
+  let thePath = path.join(appEntryPointPath(), "WebView2Loader.dll");
+  if (fs.pathExistsSync(thePath))
+    return thePath;
+  try {
+    console.log("self extracting WebView2Loader.dll");
+    thePath = path.join(appTempDir(), "WebView2Loader.dll");
+    fs.writeFileSync(thePath, fs.readFileSync(path.join(global.rootPath(), "WebView2Loader.dll")));
+  } catch (e) {
+    const error = e;
+    const errMsg = error?.message || String(e);
+    if (error.code === "EBUSY")
+      return thePath;
+    if (!fs.pathExistsSync(thePath)) {
+      onError(errMsg);
     }
   }
   return thePath;
@@ -2975,32 +3055,14 @@ async function downloadFromGithubFix(filePath, version, platform3 = os.platform(
   await import_yt_dlp_wrap.default.downloadFile(fileURL, filePath);
   !isWin32 && fs.chmodSync(filePath, "777");
 }
-function extractWebViewDll(onError) {
-  if (process.platform !== "win32")
-    return;
-  const thePath = path.join(appEntryPointPath(), "WebView2Loader.dll");
-  if (fs.pathExistsSync(thePath))
-    return thePath;
-  console.log("self extracting WebView2Loader.dll");
-  try {
-    fs.writeFileSync(thePath, fs.readFileSync(path.join(global.rootPath(), "WebView2Loader.dll")));
-  } catch (e) {
-    const error = e;
-    let errMsg = error?.message || String(e);
-    if (error.code === "EPERM") {
-      errMsg = "no permissions to extract necessary files in current dir";
-    }
-    onError(errMsg);
-  }
-  return thePath;
-}
-var path, fs, os, import_yt_dlp_wrap;
+var path, fs, os, import_yt_dlp_wrap, appName;
 var init_helper = __esm({
   "src/helper.ts"() {
     path = __toESM(require("path"));
     fs = __toESM(require_lib());
     os = __toESM(require("os"));
     import_yt_dlp_wrap = __toESM(require_dist());
+    appName = require_package().name;
   }
 });
 
@@ -3047,9 +3109,10 @@ var init_backend = __esm({
         instance.gui = __require(path5);
         return instance;
       }
-      createBrowser(handler) {
+      createBrowser(handler, webview2LoaderPath) {
         this.browser = this.gui.Browser.create(
           {
+            webview2LoaderPath,
             allowFileAccessFromFiles: true,
             contextMenu: true,
             webview2Support: true,
@@ -3437,10 +3500,10 @@ var init_open = __esm({
       let { name: app, arguments: appArguments = [] } = options.app ?? {};
       appArguments = [...appArguments];
       if (Array.isArray(app)) {
-        return pTryEach(app, (appName) => baseOpen({
+        return pTryEach(app, (appName2) => baseOpen({
           ...options,
           app: {
-            name: appName,
+            name: appName2,
             arguments: appArguments
           }
         }));
@@ -3613,7 +3676,7 @@ __export(main_exports, {
   start: () => start
 });
 async function get_ytdlp() {
-  const bin = path3.join(appTempDir("yueApp"), "yt-dlp.exe");
+  const bin = path3.join(appTempDir(), "yt-dlp.exe");
   if (!fs7.existsSync(bin)) {
     yueHelper.emit("dlp-data", `downloading yt-dlp to ${bin}...`).catch(() => {
     });
@@ -3626,7 +3689,7 @@ function setupWindow() {
   win = gui.Window.create({ frame: process.platform !== "win32", transparent: false });
   win.setResizable(true);
   win.setMaximizable(false);
-  win.setContentSize({ width: 700, height: 700 });
+  win.setContentSize({ width: 760, height: 780 });
   win.onClose = () => {
     gui.MessageLoop.quit();
   };
@@ -3652,7 +3715,7 @@ function selectFolderDialog() {
   }
   return void 0;
 }
-async function downloadVid({ url, quality }, path5) {
+async function downloadVid({ url, quality, openDir }, path5) {
   if (!path5)
     return;
   let formart = "";
@@ -3670,7 +3733,10 @@ async function downloadVid({ url, quality }, path5) {
     cmd.push(...["-f", formart]);
   }
   try {
-    const job = (await get_ytdlp()).exec(cmd);
+    yueHelper.emit("downloading", "1").catch(() => {
+    });
+    const yt2 = await get_ytdlp();
+    const job = yt2.exec();
     job.on(
       "ytDlpEvent",
       (event, data) => {
@@ -3680,15 +3746,19 @@ async function downloadVid({ url, quality }, path5) {
     job.on(
       "close",
       (code) => {
+        yueHelper.emit("downloading", "0");
         if (code === 0) {
-          open_default(path5).catch(() => {
-          });
+          if (openDir) {
+            open_default(path5).catch(() => {
+            });
+          }
         }
       }
     );
     job.on(
       "error",
       (error) => {
+        yueHelper.emit("downloading", "0");
         const errMsg = error?.message || String(error);
         yueHelper.showErrorMessage(error?.message || String(error));
         yueHelper.emit("dlp-data", errMsg);
@@ -3696,6 +3766,7 @@ async function downloadVid({ url, quality }, path5) {
     );
   } catch (e) {
     console.error(e);
+    yueHelper.emit("downloading", "0");
     yueHelper.emit("dlp-data", "");
     yueHelper.showErrorMessage(e?.message || String(e));
   }
@@ -3729,7 +3800,8 @@ async function start() {
       return protocol(resource.value);
     }
   );
-  extractWebViewDll((e) => yueHelper.showErrorMessage(e));
+  const loader = extractWebViewDll((e) => yueHelper.showErrorMessage(e));
+  process.env["WEBVIEW2_DEFAULT_BACKGROUND_COLOR"] = "FF282828";
   const browser = yueHelper.createBrowser(
     async (eventName, args, cb) => {
       switch (eventName) {
@@ -3752,7 +3824,8 @@ async function start() {
         default:
           break;
       }
-    }
+    },
+    loader
   );
   browser.setStyle({ flex: 1 });
   if (isPackaged()) {
@@ -3805,7 +3878,7 @@ async function start() {
         box.addButton("no", 0);
         const response = box.runForWindow(window);
         if (response === 1)
-          process.exit(1);
+          gui.MessageLoop.quit();
       }
     );
     return false;
