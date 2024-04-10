@@ -172,7 +172,7 @@ function setupWindow():Gui.Window{
      yueHelper.emit('downloading','1').catch(()=>{})
 
      const yt = await get_ytdlp()
-     const job = yt.exec()
+     const job = yt.exec(cmd)
 
      job.on('ytDlpEvent',(event,data)=>{
      yueHelper.emit('dlp-data',data)
